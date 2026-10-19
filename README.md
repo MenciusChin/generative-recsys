@@ -49,10 +49,29 @@ Hybrid Retrieval + Serving
 
 ```text
 src/generative_recsys/
+├── data/          # download, preprocessing, splits, torch datasets
+├── eval/          # metrics and the shared evaluator
+├── models/
+│   ├── baselines/     # popularity, ItemKNN, BPR-MF, two-tower, SASRec
+│   ├── semantic_ids/  # RQ-VAE, RQ-KMeans, random and collaborative IDs
+│   └── generative/    # encoder-decoder, ID trie, constrained beam search
+├── training/      # training loop, checkpoints, early stopping
+├── serving/       # inference service
+└── utils/         # device, seeding, config, run logging
+scripts/           # command-line entry points
+configs/           # experiment configs
 tests/
-data/
-configs/
-notebooks/
+data/              # local datasets (not committed)
+docs/              # per-phase write-ups
+results/           # generated results tables
+notebooks/         # exploration only
+```
+
+## Setup
+
+```bash
+uv sync
+uv run pytest
 ```
 
 See [ROADMAP.md](ROADMAP.md) for milestones.
