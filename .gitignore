@@ -18,4 +18,5 @@ data/raw/
 data/processed/
 artifacts/
 checkpoints/
+runs/
 wandb/
