@@ -69,10 +69,15 @@ notebooks/         # exploration only
 
 ## Setup
 
+Requires [uv](https://docs.astral.sh/uv/).
+
 ```bash
-uv sync
-uv run pytest
+make install   # create the environment from uv.lock
+make hooks     # install the pre-commit hook (ruff + basic file checks)
+make check     # lint + tests
 ```
+
+Run `make` to list all targets.
 
 See [ROADMAP.md](ROADMAP.md) for milestones.
 
