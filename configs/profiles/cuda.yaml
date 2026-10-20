@@ -1,0 +1,3 @@
+# Full runs on an NVIDIA GPU. Fails at startup if CUDA isn't available.
+run:
+  device: cuda
