@@ -1,0 +1,3 @@
+# Laptop development: use the best accelerator available (MPS on Apple silicon, else CPU).
+run:
+  device: auto
