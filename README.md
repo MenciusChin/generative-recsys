@@ -1,5 +1,7 @@
 # Generative Recommender Systems Lab
 
+[![CI](https://github.com/MenciusChin/generative-recsys/actions/workflows/ci.yml/badge.svg)](https://github.com/MenciusChin/generative-recsys/actions/workflows/ci.yml)
+
 A systems-oriented implementation path from classical recommendation to **generative retrieval**.
 
 The goal is not just to reproduce a paper. This repo will build a recommendation stack incrementally, keep strong baselines, measure each modeling choice, and eventually expose the system through an online serving layer.

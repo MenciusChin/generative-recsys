@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same PR (or to main) cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # Third-party action: pinned to a commit, since setup-uv publishes no major-version tag.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        with:
+          version: "0.12.19"  # match local development
+          enable-cache: true
+          # Key the cache on the lockfile only: torch's Linux wheels are ~3 GB, and the
+          # default key (which includes every .py file) would save a new copy per commit.
+          cache-dependency-glob: uv.lock
+          prune-cache: false  # keep downloaded wheels; that's what makes cache hits fast
+
+      - name: Install locked environment
+        run: uv sync --locked  # fails if pyproject.toml and uv.lock disagree
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+  branch-name:
+    name: branch name
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}  # via env, never interpolated into the script
+        run: .github/scripts/check-branch-name.sh "$BRANCH"
