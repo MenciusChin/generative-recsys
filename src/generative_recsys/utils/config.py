@@ -8,8 +8,9 @@ from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 from omegaconf.errors import OmegaConfBaseException
 
-# Assumes the editable (src-layout) install this repo uses.
-PROFILES_DIR = Path(__file__).resolve().parents[3] / "configs" / "profiles"
+from generative_recsys.utils.paths import REPO_ROOT
+
+PROFILES_DIR = REPO_ROOT / "configs" / "profiles"
 
 
 class ConfigError(ValueError):

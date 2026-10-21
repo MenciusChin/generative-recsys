@@ -8,14 +8,18 @@ from generative_recsys.utils.config import (
     load_config,
 )
 from generative_recsys.utils.device import get_device
+from generative_recsys.utils.run_logger import DirtyTreeWarning, Run, start_run
 from generative_recsys.utils.seed import seed_everything
 
 __all__ = [
     "ConfigError",
+    "DirtyTreeWarning",
     "ExperimentConfig",
+    "Run",
     "RunConfig",
     "config_from_argv",
     "get_device",
     "load_config",
     "seed_everything",
+    "start_run",
 ]
