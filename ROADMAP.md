@@ -32,7 +32,7 @@ This file holds the stable plan: phases, decisions and exit criteria. Day-to-day
 | Experiment tracking | Local JSON run logs (`runs/<id>/`); W&B as an opt-in flag from Phase 2 |
 | ANN | `faiss-cpu`: exact search, HNSW and IVF |
 | Workflow | `main` always green; PRs only; squash merges; tag per finished phase |
-| Branch names | `phase-<N>/<issue#>-<slug>`, `fix/<issue#>-<slug>`, `chore/<slug>`, `docs/<slug>`; checked in CI |
+| Branch names | `phase-<N>/<issue#>-<slug>`, `fix/<issue#>-<slug>`, `chore/<slug>`, `docs/<slug>` (plus `dependabot/…`); checked in CI by `.github/scripts/check-branch-name.sh` |
 | Tracking work | GitHub Issues + Milestones (one milestone per phase) |
 
 ## Research questions
