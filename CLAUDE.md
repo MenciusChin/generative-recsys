@@ -29,11 +29,32 @@ make format    # ruff auto-fix + format
 - A pre-commit hook runs ruff and file checks on every commit (`make hooks` installs it).
 - After adding or changing dependencies, use `uv add` / `uv lock` and commit `uv.lock`. CI runs `uv sync --locked`.
 
+## Accounts
+
+This machine has a work and a personal GitHub account. Everything in this repo must use the
+**personal** account, `MenciusChin`. Two folder-scoped settings handle that:
+
+| What | How | Where |
+|---|---|---|
+| Commit author | `includeIf "gitdir:…/vapecat/"` loads the personal identity | `~/.gitconfig` → `~/.gitconfig-personal` |
+| GitHub auth (`git push`, `gh`) | exports the personal token as `GH_TOKEN` | `../.envrc`, via direnv |
+
+Rules:
+- **Run `git push` and every `gh` command through `direnv exec .`.** The machine's active `gh`
+  account is the work account. Without direnv, `git push` fails and `gh` acts as the wrong account.
+- **Check before the first outward action in a session** (push, PR, merge, issue comment):
+  - `direnv exec . gh api user --jq .login` must print `MenciusChin`.
+  - `git config user.name` must print `MenciusChin`.
+  - If either doesn't match, **stop and tell the user**. Don't work around it.
+- **Never change the global setup.** No `gh auth switch`, `gh auth login`, `gh auth refresh` or
+  edits to `~/.gitconfig*`; those affect the user's work account too. If a token needs a new scope,
+  give the user the commands to run.
+- **Never print or write the token.** Don't echo `GH_TOKEN`, put it in a file or a remote URL, or
+  commit `.envrc`, which lives outside the repo.
+- **If direnv reports that `.envrc` is blocked,** ask the user to run `direnv allow`. Don't run it yourself.
+
 ## Git and GitHub
 
-- **Run `git push` and every `gh` command through `direnv exec .`.** The machine's active `gh`
-  account is a work account; `../.envrc` exports the personal account's token for this folder only.
-  A plain `git push` fails, and `gh` would act as the wrong account.
 - **Branch names**, checked in CI by `.github/scripts/check-branch-name.sh`:
   - `phase-<N>/<issue#>-<slug>`
   - `fix/<issue#>-<slug>`
