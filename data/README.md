@@ -95,7 +95,99 @@ only read local files. If one is missing, they fail and point here instead of do
    the same file. If no copy matches, the data has changed, and that needs a deliberate decision
    recorded in an issue, because every result depends on it.
 
-## Preprocessing, splits and reproducibility checks
+## Raw columns
 
-Preprocessing is covered by [#11](https://github.com/MenciusChin/generative-recsys/issues/11),
-and splits by [#12](https://github.com/MenciusChin/generative-recsys/issues/12).
+The upstream definitions are in the "Format" section of the
+[Amazon dataset page](https://cseweb.ucsd.edu/~jmcauley/datasets/amazon/links.html) and in the
+ML-1M README (`unzip -p data/raw/ml-1m/ml-1m.zip ml-1m/README`). "Filled in" counts are for
+the 12,101 items in the Beauty 5-core set.
+
+**Beauty reviews** (`reviews_Beauty_5.json.gz`)
+
+| Column | Meaning | Kept as |
+|---|---|---|
+| `reviewerID` | User ID | `raw_user_id` |
+| `asin` | Amazon product ID | `raw_item_id` |
+| `unixReviewTime` | Review date, unix seconds (always midnight UTC) | `timestamp` |
+| `overall` | Star rating, 1–5 | `rating` |
+| `reviewTime` | The same date as text, e.g. `"09 13, 2009"` | dropped |
+| `reviewText`, `summary` | Review body and headline | dropped |
+| `reviewerName` | Display name | dropped |
+| `helpful` | `[helpful votes, total votes]` | dropped |
+
+**Beauty metadata** (`meta_Beauty.json.gz`)
+
+| Column | Meaning | Filled in | Kept? |
+|---|---|---|---|
+| `asin` | Product ID | 12,101 | yes |
+| `title` | Product name | 12,094 | yes |
+| `brand` | Brand | 10,003 | yes |
+| `categories` | Category paths, e.g. `[['Beauty', 'Makeup', 'Face', 'Concealers']]` | 12,101 | yes |
+| `description` | Product description | 11,163 | yes |
+| `price` | Price in USD at crawl time (2014) | 11,516 | yes |
+| `imUrl` | Image URL | 12,094 | no: no phase uses images |
+| `salesRank` | `{category: rank}` at crawl time | 11,883 | no: leaks the future (see below) |
+| `related` | `also_bought`, `also_viewed`, `bought_together`, `buy_after_viewing`: product IDs | 12,019 | no: leaks the future |
+
+**ML-1M** (fields separated by `::`)
+
+| File | Columns | Kept |
+|---|---|---|
+| `ratings.dat` | `UserID`, `MovieID`, `Rating` (1–5 whole stars), `Timestamp` (unix seconds) | all |
+| `movies.dat` | `MovieID`, `Title` (with year, e.g. `Toy Story (1995)`), `Genres` (`\|`-separated) | all |
+| `users.dat` | `UserID`, `Gender`, `Age` (bracket code), `Occupation` (code 0–20), `Zip-code` | none |
+
+## Preprocessing
+
+```bash
+uv run python scripts/preprocess.py --dataset beauty   # ~20 s
+uv run python scripts/preprocess.py --dataset ml-1m    # ~5 s
+```
+
+This reads the raw files, after checking them against the pinned checksums, and writes
+`data/processed/<dataset>/`. Steps:
+
+1. **Keep each (user, item) pair's first interaction.** Neither dataset has duplicates today.
+2. **Filter to the 5-core, repeatedly until stable.** Every remaining user and item has at least
+   5 interactions. One pass isn't enough: removing a rare item can leave a user with 4, and that
+   user then has to go too.
+   - Beauty is already a 5-core: 0 rounds.
+   - ML-1M needs 1 round, which removes 290 movies with fewer than 5 ratings. A few users drop
+     below their original 20 ratings as a result; the shortest history left is 18.
+3. **Assign contiguous IDs.** Users become `0..U-1` and items `0..N-1`, in sorted order of their
+   raw IDs, so the numbering doesn't depend on row order.
+   - An item's ID is its column in a `[batch, n_items]` score matrix.
+   - There is no padding ID: that's for the sequence datasets and models to add, e.g. `n_items`.
+4. **Order each user's history by `(timestamp, item ID)`.**
+   - **The tie-break matters.** For 43.5% of Beauty users (42.1% of ML-1M users), the last two
+     interactions share a timestamp, so the tie-break alone decides which is the test item in a
+     leave-one-out split.
+   - Since item IDs follow raw-ID order and the Beauty file is sorted by product ID, this is the
+     raw file's order: what a stable time sort of the file, as public preprocessing scripts do,
+     produces.
+5. **Write the tables and `stats.json`, then check the counts.** The script fails, writing nothing,
+   if the counts aren't the expected ones.
+
+The output is byte-identical across runs with the same raw files and locked dependencies.
+`stats.json` records the SHA-256 of every input and output.
+
+| File | Columns |
+|---|---|
+| `interactions.parquet` | `user_id`, `item_id`, `timestamp`, `rating`, `position`: one row per interaction, sorted by user and then chronologically. `position` is the index in that user's history, from 0. |
+| `users.parquet` | `user_id`, `raw_user_id` |
+| `items.parquet` | `item_id`, `raw_item_id`, then Beauty: `title`, `brand`, `categories`, `description`, `price`; ML-1M: `title`, `genres`. Missing values are nulls, and HTML entities are decoded. |
+| `stats.json` | Counts, density, history-length percentiles, share of users whose last two interactions tie, k-core rounds, input and output SHA-256s |
+
+| | Users | Items | Interactions | Density | History length (median / p90 / max) |
+|---|---|---|---|---|---|
+| Beauty | 22,363 | 12,101 | 198,502 | 0.073% | 6 / 14 / 204 |
+| ML-1M | 6,040 | 3,416 | 999,611 | 4.84% | 96 / 400 / 2,277 |
+
+**Why `related` and `salesRank` are dropped.** Both were computed at the 2014 crawl, from every
+customer's behaviour, including interactions that come after our test items. For example, if
+`also_bought` links a cleanser to a toner because many people later bought both, then an item
+representation built from it lets a model "predict" the toner with information from the future.
+
+## Splits
+
+Covered by [#12](https://github.com/MenciusChin/generative-recsys/issues/12).

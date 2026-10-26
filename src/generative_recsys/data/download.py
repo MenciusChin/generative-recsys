@@ -103,8 +103,7 @@ def fetch(file: RemoteFile, dest_dir: Path, *, force: bool = False) -> Path:
     path = dest_dir / file.name
     if path.exists() and not force:
         try:
-            _check_size(file, path.stat().st_size)  # a truncated file fails before hashing
-            _check_sha256(file, _sha256(path))
+            verify(file, path)
         except ChecksumError as e:
             raise ChecksumError(
                 f"{path} exists but is not the expected file ({e}). "
@@ -128,6 +127,12 @@ def fetch(file: RemoteFile, dest_dir: Path, *, force: bool = False) -> Path:
         finally:
             part.unlink(missing_ok=True)  # after a failure or Ctrl-C, leave nothing behind
     raise DownloadError(f"{file.name}: no source gave a valid file\n" + "\n".join(errors))
+
+
+def verify(file: RemoteFile, path: Path) -> None:
+    """Raise ``ChecksumError`` unless ``path`` has ``file``'s pinned size and SHA-256."""
+    _check_size(file, path.stat().st_size)  # a truncated file fails before hashing
+    _check_sha256(file, _sha256(path))
 
 
 def _download(url: str, part: Path, file: RemoteFile) -> None:
