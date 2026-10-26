@@ -69,8 +69,10 @@ Rules:
 
 ## Code
 
-- **Every run** goes through `config_from_argv` / `load_config` → `get_device` → `seed_everything` →
-  `start_run`, all in `generative_recsys.utils`.
+- **Every experiment run** goes through `config_from_argv` / `load_config` → `get_device` →
+  `seed_everything` → `start_run`, all in `generative_recsys.utils`.
+- **Downloading data is a setup step, not a run.** `scripts/download.py` uses plain `argparse` and
+  writes no run log. Runs only read local files; they never download.
 - **Code must be device-agnostic** (CUDA → MPS → CPU). Keep CUDA-only dependencies optional.
 - **Configs:** add a dataclass field before using a new setting. Profiles hold hardware settings only.
   See [configs/README.md](configs/README.md).
