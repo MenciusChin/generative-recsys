@@ -190,4 +190,53 @@ representation built from it lets a model "predict" the toner with information f
 
 ## Splits
 
-Covered by [#12](https://github.com/MenciusChin/generative-recsys/issues/12).
+**Leave-one-out, per user.** The last item is the test target, the second-to-last is the
+validation target, and the rest is training. For a user with history `[a, b, c, d, e, f]`:
+
+| Split | History | Target |
+|---|---|---|
+| Training | learns from `[a, b, c, d]` | |
+| Validation | `[a, b, c, d]` | `e` |
+| Test | `[a, b, c, d, e]` | `f` |
+
+- **The test history includes the validation item.** By the time we predict `f`, `e` has
+  happened. Training never sees either target, and models are not retrained on
+  training + validation before testing. This is the SASRec and TIGER protocol.
+- **Every user appears once in validation and once in test.** The 5-core guarantees at least
+  3 training items per user.
+- **The split is computed in memory, never written to disk.** It takes under a second, so it
+  can't go stale when preprocessing changes.
+- **It uses `position` and row order only, and never re-sorts by timestamp,** because timestamp
+  ties were already broken in preprocessing.
+- **It isn't random:** seeds only matter for shuffling and model initialisation.
+- **Known limitation:** leave-one-out lets one user's test item come earlier in time than
+  another user's training items. A global time split would avoid that, but we keep
+  leave-one-out so our numbers stay comparable with the papers.
+
+```python
+from generative_recsys.data.datasets import eval_dataset, train_dataset
+from generative_recsys.data.split import load_split
+
+split = load_split("beauty")  # reads data/processed/beauty/
+split.train  # training interactions: user_id, item_id, timestamp
+split.valid_targets, split.test_targets  # int arrays [n_users], indexed by user_id
+
+train = train_dataset(split, max_len=50)  # one example per training position
+test = eval_dataset(split, "test", max_len=50)  # one example per user
+test[0]  # {"user_id": tensor(0), "history": tensor([PAD, ..., 11752]), "target": tensor(11863)}
+```
+
+**Training examples:** every prefix of a user's training history. `[a, b, c, d]` yields
+`[a] → b`, `[a, b] → c` and `[a, b, c] → d`, which works for any next-item model. SASRec's
+cheaper whole-sequence form, which is only valid for causally masked models, comes in Phase 3.
+Examples are built when requested from `(user, end position)` pairs, so they cost almost no
+memory.
+
+**Histories** keep the most recent `max_len` items and are padded on the left with
+`split.pad_id`, which is `n_items`. The latest item is therefore always at index -1, and PAD is
+never a real item or a score column. `max_len` has no default: it's a model setting.
+
+| | Training interactions | Training examples | Validation / test examples | Test histories longer than 20 / 50 / 200 |
+|---|---|---|---|---|
+| Beauty | 153,776 | 131,413 | 22,363 | 4.6% / 0.6% / 0% |
+| ML-1M | 987,531 | 981,491 | 6,040 | 97.1% / 69.6% / 26.0% |
