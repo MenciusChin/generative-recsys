@@ -62,6 +62,10 @@ Fixed in Phase 1, then shared by every model.
 **Recommendation quality**
 - **Full ranking** over the whole item catalog; no sampled negatives.
 - Per-user accuracy: **Recall@K**, **NDCG@K**, **MRR@K** for K ∈ {5, 10}. Model selection uses validation NDCG@10.
+  - With one target per user, Recall@K is the same as Hit Rate@K. We keep TIGER's name.
+  - **Tied scores are averaged over every order they could be broken in,** so the result never
+    depends on the device or the sort. Breaking ties in the target's favour would give a model that
+    scores every item the same a perfect score.
 - Catalog-level: **coverage@K** (share of the catalog that is ever recommended) and **popularity bias**
   (mean popularity percentile of recommended items).
 
