@@ -40,6 +40,7 @@ class Split:
     n_items: int
     items: np.ndarray  # int64 [n_interactions], users' sequences concatenated in user_id order
     offsets: np.ndarray  # int64 [n_users + 1]
+    timestamps: np.ndarray  # int64 [n_interactions], aligned with items
     train: pd.DataFrame  # training interactions: user_id, item_id, timestamp
 
     @property
@@ -64,6 +65,12 @@ class Split:
     def target_index(self, split: EvalSplit) -> np.ndarray:
         """Index into ``items`` of each user's ``split`` target; its history is what precedes it."""
         return self.offsets[1:] - {"valid": 2, "test": 1}[split]
+
+    def same_time(self, split: EvalSplit) -> np.ndarray:
+        """bool [n_users]: whether each user's ``split`` target has the same timestamp as
+        their last history item. If so, only preprocessing's tie-break put it second."""
+        index = self.target_index(split)
+        return self.timestamps[index] == self.timestamps[index - 1]
 
     def history(self, user_id: int, split: EvalSplit) -> np.ndarray:
         """The user's full (untruncated) history for ``split``."""
@@ -90,9 +97,11 @@ class Split:
         if items.min() < 0 or items.max() >= n_items:
             raise ValueError(f"item_id must be in 0..{n_items - 1}")
 
+        timestamps = interactions["timestamp"].to_numpy(np.int64)
+
         is_train = position < np.repeat(counts - 2, counts)
         train = interactions.loc[is_train, ["user_id", "item_id", "timestamp"]]
-        return cls(n_users, n_items, items, offsets, train.reset_index(drop=True))
+        return cls(n_users, n_items, items, offsets, timestamps, train.reset_index(drop=True))
 
 
 def load_split(dataset: str, processed_dir: str | Path = PROCESSED_DATA_DIR) -> Split:

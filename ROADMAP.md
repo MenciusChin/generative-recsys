@@ -56,8 +56,12 @@ Fixed in Phase 1, then shared by every model.
 - Interactions sorted by timestamp per user, 5-core filtering.
 - **Leave-one-out split:** last item → test, second-to-last → validation, the rest → training.
 - Fixed seeds; headline results are the mean of ≥3 seeds.
-- *Open:* whether items already in the user's history are masked during ranking. We'll decide in
-  Phase 1 and apply the same rule to every model.
+- **Every item in the user's full history is masked** (scored −∞) before ranking, for every model,
+  in `generative_recsys.eval.evaluator.evaluate`. Each (user, item) pair is kept once, so a seen
+  item can never be the target. Masking only removes certain misses. The full history is masked,
+  not just the `max_len` items a model reads, so the effect doesn't depend on a model setting. For
+  the test split, the history includes the validation item. SASRec's code and S3-Rec's
+  full-ranking code, the source of TIGER's baseline numbers, also exclude seen items.
 
 **Recommendation quality**
 - **Full ranking** over the whole item catalog; no sampled negatives.
@@ -66,8 +70,17 @@ Fixed in Phase 1, then shared by every model.
   - **Tied scores are averaged over every order they could be broken in,** so the result never
     depends on the device or the sort. Breaking ties in the target's favour would give a model that
     scores every item the same a perfect score.
-- Catalog-level: **coverage@K** (share of the catalog that is ever recommended) and **popularity bias**
-  (mean popularity percentile of recommended items).
+- Catalog-level, all computed as expected values over tie orders, like accuracy:
+  - **coverage@K:** the share of the catalog that is in at least one user's top K
+  - **popularity bias@K:** the mean popularity percentile of the recommended items. Popularity
+    is the item's count in the training interactions, with tied counts sharing a middle percentile.
+    A random recommender scores 0.5.
+  - **tail share@K:** the share of recommended items outside the head, where the head is the most
+    popular items that together hold 20% of training interactions
+- **Same-time slice:** every metric is also reported separately for users whose target shares a
+  timestamp with their last history item (43.5% of Beauty test users), and for everyone else.
+  For those users, only preprocessing's tie-break put the target second, and a model can learn
+  that order (#16, #30).
 
 **Systems**
 - **p50 / p95 latency** and **throughput**, at several batch sizes

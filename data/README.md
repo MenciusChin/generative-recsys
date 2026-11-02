@@ -220,6 +220,7 @@ from generative_recsys.data.split import load_split
 split = load_split("beauty")  # reads data/processed/beauty/
 split.train  # training interactions: user_id, item_id, timestamp
 split.valid_targets, split.test_targets  # int arrays [n_users], indexed by user_id
+split.same_time("test")  # bool [n_users]: target has the same timestamp as the last history item
 
 train = train_dataset(split, max_len=50)  # one example per training position
 test = eval_dataset(split, "test", max_len=50)  # one example per user
