@@ -159,3 +159,9 @@ def test_rejects_tables_not_in_the_processed_layout(processed, change, message):
 def test_max_len_must_be_positive(split):
     with pytest.raises(ValueError, match="max_len"):
         train_dataset(split, max_len=0)
+
+
+def test_same_time_flags_targets_tied_with_the_last_history_item(split):
+    # Timestamps go up every two positions: u0 is [0, 0, 100], u1 [0, 0, 100, 100, 200, 200].
+    assert split.same_time("valid").tolist() == [True, False, False]
+    assert split.same_time("test").tolist() == [False, True, True]
